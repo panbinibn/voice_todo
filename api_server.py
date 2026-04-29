@@ -20,26 +20,38 @@ client = OpenAI(
 
 # ============ 语音转文字 (鲁棒版) ============
 def speech_to_text(audio_bytes: bytes) -> str:
-    # 将音频字节写入临时文件，保留原始后缀，让librosa自动处理
-    with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
         tmp.write(audio_bytes)
-        tmp_path = tmp.name
+        raw_path = tmp.name
+
+    # 生成一个临时 WAV 文件名
+    wav_path = tempfile.mktemp(suffix=".wav")
 
     try:
-        # 用 librosa 加载，自动重采样到 16kHz 单声道
-        audio, sr = librosa.load(tmp_path, sr=16000, mono=True)
-        os.unlink(tmp_path) # 尽早删除临时文件
+        # 直接用系统命令让 ffmpeg 转换，强行重采样到 16kHz 单声道
+        subprocess.run([
+            "ffmpeg", "-y", "-i", raw_path,
+            "-ac", "1", "-ar", "16000",
+            wav_path
+        ], check=True, capture_output=True)
 
-        # 直接传 numpy 数组给 faster-whisper
+        # 用 soundfile 直接读取干净的标准 WAV
+        audio, sr = sf.read(wav_path)
+
+        os.unlink(raw_path)
+        os.unlink(wav_path)
+
         segments, _ = whisper.transcribe(audio, language="zh")
         text = "".join([seg.text for seg in segments])
-        print(f"🎤 识别结果: {text}")  # ← 加这行，输出到 Railway 日志
+        print(f"🎤 识别结果: {text}")
         return text
-    except Exception:
-        print(f"❌ 语音识别出错: {e}")  # ← 加上错误日志
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        return "" # 返回空字符串，避免服务崩溃
+    except Exception as e:
+        print(f"❌ 语音识别出错: {e}")
+        if os.path.exists(raw_path):
+            os.unlink(raw_path)
+        if os.path.exists(wav_path):
+            os.unlink(wav_path)
+        return ""
 
 # ========== LLM 解析待办 ==========
 def generate_todos(text: str) -> list:
