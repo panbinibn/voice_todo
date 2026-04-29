@@ -21,7 +21,7 @@ client = OpenAI(
 # ============ 语音转文字 (鲁棒版) ============
 def speech_to_text(audio_bytes: bytes) -> str:
     # 将音频字节写入临时文件，保留原始后缀，让librosa自动处理
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
 
