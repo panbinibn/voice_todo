@@ -1,129 +1,119 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-    <title>AI 记忆外挂</title>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:-apple-system, sans-serif; background:#f5f5f5; padding:20px; max-width:500px; margin:auto; }
-        h1 { text-align:center; color:#333; margin-bottom:20px; }
-        .card { background:white; border-radius:16px; padding:20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-        button { width:100%; padding:14px; border:none; border-radius:12px; font-size:18px; font-weight:bold; cursor:pointer; margin:8px 0; }
-        .btn-record { background:#ff4757; color:white; }
-        .btn-record.recording { background:#ff6b81; animation:pulse 1.5s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
-        .btn-submit { background:#2ed573; color:white; }
-        .btn-upload { background:#1e90ff; color:white; }
-        #result { margin-top:16px; }
-        .todo-item { background:white; border-radius:12px; padding:16px; margin-bottom:10px; display:flex; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-        .todo-item img { width:60px; height:60px; border-radius:8px; object-fit:cover; margin-right:12px; }
-        .todo-info { flex:1; }
-        .todo-info h3 { font-size:16px; margin-bottom:4px; }
-        .todo-info p { font-size:13px; color:#666; }
-        input[type="text"] { width:100%; padding:14px; border:1px solid #ddd; border-radius:12px; font-size:16px; }
-        #preview { text-align:center; margin:10px 0; }
-        #preview img { max-width:200px; border-radius:12px; }
-    </style>
-</head>
-<body>
-    <h1>🧠 AI 记忆外挂</h1>
+let audioChunks = [];
+let mediaRecorder;
 
-    <!-- 录音 -->
-    <div class="card">
-        <h3>🎤 语音输入</h3>
-        <button class="btn-record" id="recordBtn">按住录音</button>
-        <p id="status" style="text-align:center;margin-top:10px;color:#666;"></p>
-    </div>
+document.getElementById("recordBtn").addEventListener("touchstart", async (e) => {
+    e.preventDefault();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        document.getElementById("status").textContent = "录音完成，点击「生成待办」提交";
+    };
+    audioChunks = [];
+    mediaRecorder.start();
+    document.getElementById("recordBtn").classList.add("recording");
+    document.getElementById("recordBtn").textContent = "录音中，松开发送";
+    document.getElementById("status").textContent = "正在录音...";
+});
 
-    <!-- 文字输入 -->
-    <div class="card">
-        <h3>✏️ 手动输入</h3>
-        <input type="text" id="textInput" placeholder="输入你想记的事..." />
-    </div>
+document.getElementById("recordBtn").addEventListener("touchend", () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        document.getElementById("recordBtn").classList.remove("recording");
+        document.getElementById("recordBtn").textContent = "按住录音";
+    }
+});
 
-    <!-- 图片上传 -->
-    <div class="card">
-        <h3>📷 照片（可选）</h3>
-        <input type="file" id="imageInput" accept="image/*" capture="environment" style="display:none" />
-        <button class="btn-upload" onclick="document.getElementById('imageInput').click()">选择照片</button>
-        <div id="preview"></div>
-    </div>
+// 辅助：将 AudioBuffer 转成 16kHz 单声道 WAV 的 Blob
+function audioBufferToWav(buffer) {
+    const numChannels = 1; // 强制单声道
+    const sampleRate = 16000; // 强制16kHz
+    const bitsPerSample = 16;
+    const format = 1; // PCM
+    const data = buffer.getChannelData(0);
+    const dataLength = data.length * (bitsPerSample / 8);
+    const headerLength = 44;
+    const totalLength = headerLength + dataLength;
+    const arrayBuffer = new ArrayBuffer(totalLength);
+    const view = new DataView(arrayBuffer);
 
-    <!-- 生成按钮 -->
-    <button class="btn-submit" onclick="submitTodo()">✨ 生成待办</button>
+    // RIFF 头
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, totalLength - 8, true);
+    writeString(view, 8, 'WAVE');
+    // fmt 子块
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+    view.setUint16(32, numChannels * bitsPerSample / 8, true);
+    view.setUint16(34, bitsPerSample, true);
+    // data 子块
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
 
-    <!-- 结果 -->
-    <div id="result"></div>
+    let offset = 44;
+    for (let i = 0; i < data.length; i++) {
+        const sample = Math.max(-1, Math.min(1, data[i]));
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset, intSample, true);
+        offset += 2;
+    }
 
-    <script>
-        let mediaRecorder, audioChunks = [];
-        const recordBtn = document.getElementById("recordBtn");
+    return new Blob([arrayBuffer], { type: "audio/wav" });
+}
 
-        recordBtn.addEventListener("touchstart", async (e) => {
-            e.preventDefault();
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                stream.getTracks().forEach(t => t.stop());
-                document.getElementById("status").textContent = "录音完成，点击「生成待办」提交";
-            };
-            audioChunks = [];
-            mediaRecorder.start();
-            recordBtn.classList.add("recording");
-            recordBtn.textContent = "录音中，松开发送";
-            document.getElementById("status").textContent = "正在录音...";
-        });
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
 
-        recordBtn.addEventListener("touchend", () => {
-            if (mediaRecorder && mediaRecorder.state === "recording") {
-                mediaRecorder.stop();
-                recordBtn.classList.remove("recording");
-                recordBtn.textContent = "按住录音";
-            }
-        });
+async function submitTodo() {
+    const formData = new FormData();
+    const text = document.getElementById("textInput").value;
+    const image = document.getElementById("imageInput").files[0];
 
-        document.getElementById("imageInput").addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => document.getElementById("preview").innerHTML = `<img src="${ev.target.result}" />`;
-                reader.readAsDataURL(file);
-            }
-        });
+    if (audioChunks.length > 0) {
+        // 将录制的 webm 转成 16kHz 单声道 WAV
+        const webmBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const arrayBuffer = await webmBlob.arrayBuffer();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        // 重采样到 16kHz（如果原始不是）
+        // 简单起见，直接使用 buffer 并假设采样率已满足，若严格需要可重采样，但该 API 会以当前上下文采样率解码
+        // 解码后的 buffer 采样率为 audioCtx.sampleRate (通常 44100/48000)，需要重采样
+        // 增加一个离线重采样步骤
+        const offlineCtx = new OfflineAudioContext(1, audioBuffer.duration * 16000, 16000);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        const renderedBuffer = await offlineCtx.startRendering();
+        const wavBlob = audioBufferToWav(renderedBuffer);
+        formData.append("audio", wavBlob, "recording.wav");
+    } else if (text) {
+        formData.append("text", text);
+    } else {
+        alert("请先录音或输入文字");
+        return;
+    }
 
-        async function submitTodo() {
-            const formData = new FormData();
-            const text = document.getElementById("textInput").value;
-            const image = document.getElementById("imageInput").files[0];
+    if (image) formData.append("image", image);
+    document.getElementById("result").innerHTML = "<p style='text-align:center'>⏳ 正在处理...</p>";
 
-            if (audioChunks.length > 0) {
-                const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-                formData.append("audio", audioBlob, "recording.wav");
-            } else if (text) {
-                formData.append("text", text);
-            } else {
-                alert("请先录音或输入文字");
-                return;
-            }
+    const resp = await fetch("/api/todo", { method: "POST", body: formData });
+    const data = await resp.json();
 
-            if (image) formData.append("image", image);
-
-            document.getElementById("result").innerHTML = "<p style='text-align:center'>⏳ 正在处理...</p>";
-
-            const resp = await fetch("/api/todo", { method: "POST", body: formData });
-            const data = await resp.json();
-
-            let html = `<p style="text-align:center;color:#666;">🎤 识别：${data.text}</p>`;
-            data.todos.forEach((t, i) => {
-                html += `<div class="todo-item">`;
-                if (t.image_url) html += `<img src="${t.image_url}" />`;
-                html += `<div class="todo-info"><h3>${t.title}</h3><p>⏰ ${t.deadline || "无"} | 📁 ${t.category || "未知"} | ${{"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || ""}${t.priority}</p></div></div>`;
-            });
-            document.getElementById("result").innerHTML = html;
-            audioChunks = [];
-        }
-    </script>
-</body>
-</html>
+    let html = `<p style="text-align:center;color:#666;">🎤 识别：${data.text}</p>`;
+    data.todos.forEach(t => {
+        html += `<div class="todo-item">`;
+        if (t.image_url) html += `<img src="${t.image_url}" />`;
+        html += `<div class="todo-info"><h3>${t.title}</h3><p>⏰ ${t.deadline || "无"} | 📁 ${t.category || "未知"} | ${ {"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || "" }${t.priority}</p></div></div>`;
+    });
+    document.getElementById("result").innerHTML = html;
+    audioChunks = [];
+}

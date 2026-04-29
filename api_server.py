@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 from faster_whisper import WhisperModel
 from openai import OpenAI
 import json, os, tempfile, uuid, librosa
-import subprocess
 import soundfile as sf
 
 app = FastAPI()
@@ -22,26 +21,14 @@ client = OpenAI(
 
 # ============ 语音转文字 (鲁棒版) ============
 def speech_to_text(audio_bytes: bytes) -> str:
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp.write(audio_bytes)
-        raw_path = tmp.name
-
-    # 生成一个临时 WAV 文件名
-    wav_path = tempfile.mktemp(suffix=".wav")
+        tmp_path = tmp.name
 
     try:
-        # 直接用系统命令让 ffmpeg 转换，强行重采样到 16kHz 单声道
-        subprocess.run([
-            "ffmpeg", "-y", "-i", raw_path,
-            "-ac", "1", "-ar", "16000",
-            wav_path
-        ], check=True, capture_output=True)
-
-        # 用 soundfile 直接读取干净的标准 WAV
-        audio, sr = sf.read(wav_path)
-
-        os.unlink(raw_path)
-        os.unlink(wav_path)
+        # 直接读取 WAV，前端已经确保是 16kHz 单声道
+        audio, sr = sf.read(tmp_path)
+        os.unlink(tmp_path)
 
         segments, _ = whisper.transcribe(audio, language="zh")
         text = "".join([seg.text for seg in segments])
@@ -49,10 +36,8 @@ def speech_to_text(audio_bytes: bytes) -> str:
         return text
     except Exception as e:
         print(f"❌ 语音识别出错: {e}")
-        if os.path.exists(raw_path):
-            os.unlink(raw_path)
-        if os.path.exists(wav_path):
-            os.unlink(wav_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
         return ""
 
 # ========== LLM 解析待办 ==========
