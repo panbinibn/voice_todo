@@ -32,12 +32,14 @@ def speech_to_text(audio_bytes: bytes) -> str:
 
         # 直接传 numpy 数组给 faster-whisper
         segments, _ = whisper.transcribe(audio, language="zh")
-        return "".join([seg.text for seg in segments])
+        text = "".join([seg.text for seg in segments])
+        print(f"🎤 识别结果: {text}")  # ← 加这行，输出到 Railway 日志
+        return text
     except Exception:
+        print(f"❌ 语音识别出错: {e}")  # ← 加上错误日志
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         return "" # 返回空字符串，避免服务崩溃
-
 
 # ========== LLM 解析待办 ==========
 def generate_todos(text: str) -> list:
