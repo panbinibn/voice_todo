@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from faster_whisper import WhisperModel
 from openai import OpenAI
 import json, os, tempfile, uuid, librosa
+import subprocess
+import soundfile as sf
 
 app = FastAPI()
 
