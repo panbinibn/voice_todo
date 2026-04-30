@@ -347,53 +347,88 @@
             }
         }
 
-        // 录音按钮事件
+            // 录音按钮事件
         const recordBtn = document.getElementById('recordBtn');
         recordBtn.addEventListener('touchstart', async (e) => {
-            e.preventDefault();
-            // 如果输入模式激活，先关闭
-            if (inputModeActive) toggleInputMode();
-
-            if (!audioStream) {
-                try {
-                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } catch (err) {
-                    alert("无法访问麦克风：" + err.message);
-                    return;
-                }
-                // 首次获取权限后不自动录音，等待下次长按
-                document.getElementById('currentTodoArea').innerHTML = '<p style="text-align:center;color:var(--primary);">✅ 麦克风已就绪，请再次按住录音</p>';
-                return;
-            }
-
+        e.preventDefault();
+        if (inputModeActive) toggleInputMode();
+        // 1. 尚未授权 -> 仅申请权限
+        if (!audioStream) {
             try {
-                mediaRecorder = new MediaRecorder(audioStream);
+                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                document.getElementById('currentTodoArea').innerHTML =
+                    '<p style="text-align:center;color:var(--primary);">✅ 麦克风已就绪，请再次按住录音</p>';
+            } catch (err) {
+                alert("无法访问麦克风：" + err.message);
+            }
+            return;
+        }
+
+        // 2. 已授权 -> 真正录音
+        const mimeTypes = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4',
+            'audio/aac',
+            '' // 最后尝试让浏览器自选
+        ];
+
+        let started = false;
+        for (const mime of mimeTypes) {
+            if (started) break;
+            try {
+                const options = mime ? { mimeType: mime } : {};
+                mediaRecorder = new MediaRecorder(audioStream, options);
                 mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
                 mediaRecorder.onstop = () => {
                     if (audioChunks.length > 0) {
-                        recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        showAudioPlayer(recordedBlob);
+                        recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                        showPlayerFallback(recordedBlob);
                     }
                 };
                 audioChunks = [];
                 mediaRecorder.start();
                 recordBtn.classList.add('recording');
+                document.getElementById('status')?.textContent = '正在录音...';
+                started = true;
             } catch (err) {
-                alert("录音启动失败：" + err.message);
+                // 该 mimeType 不支持，继续尝试下一个
+                console.warn('尝试 mimeType 失败:', mime, err);
             }
+        }
+
+        if (!started) {
+            alert('当前浏览器无法启动录音，请使用手动输入');
+        }
         });
 
         recordBtn.addEventListener('touchend', () => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 recordBtn.classList.remove('recording');
+                document.getElementById('status')?.textContent = '录音完成，可播放试听，点击「生成待办」提交';
             }
         });
 
         // 显示音频播放器
-        function showAudioPlayer(blob) {
+        function showPlayerFallback(blob) {
+            const container = document.getElementById('playerContainer');
             const url = URL.createObjectURL(blob);
-            document.getElementById('playerContainer').innerHTML = `<audio controls src="${url}"></audio>`;
+            const mime = blob.type;
+
+            // iOS Safari 对 webm 的 <audio> 播放支持极差，转换提示
+            if (mime && mime.includes('webm')) {
+                container.innerHTML = `
+                    <p style="color:var(--text-secondary);font-size:14px;text-align:center;">
+                        ⚠️ 你的浏览器可能不支持直接播放该格式<br>
+                        可以直接点击「生成待办」，后台会自动识别
+                    </p>
+                    <audio controls src="${url}"></audio>
+                `;
+            } else {
+                container.innerHTML = `<audio controls src="${url}"></audio>`;
+            }
+
             document.getElementById('audioPlaybackArea').style.display = 'block';
             document.getElementById('currentTodoArea').innerHTML = '';
             document.getElementById('inputModeArea').classList.remove('active');
