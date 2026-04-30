@@ -286,73 +286,74 @@
         <button class="bottom-btn record-btn" id="recordBtn">🎤</button>
     </div>
 
-    <script>
-        // 全局状态
-        let audioChunks = [];
-        let mediaRecorder;
-        let audioStream = null;
-        let recordedBlob = null;
-        let inputModeActive = false;
-        let userId = localStorage.getItem('todo_user_id');
-        if (!userId) {
-            userId = 'user_' + crypto.randomUUID();
-            localStorage.setItem('todo_user_id', userId);
-        }
+   <script>
+    let audioChunks = [];
+    let mediaRecorder;
+    let audioStream = null;
+    let recordedBlob = null;
+    let inputModeActive = false;
+    let userId = localStorage.getItem('todo_user_id');
+    if (!userId) {
+        userId = 'user_' + crypto.randomUUID();
+        localStorage.setItem('todo_user_id', userId);
+    }
 
-        // 抽屉控制
-        function openDrawer() {
-            document.getElementById('drawer').classList.add('open');
-            document.getElementById('drawerOverlay').classList.add('show');
-            loadDrawerTodos();
-        }
-        function closeDrawer() {
-            document.getElementById('drawer').classList.remove('open');
-            document.getElementById('drawerOverlay').classList.remove('show');
-        }
+    // ---------- 抽屉控制 ----------
+    function openDrawer() {
+        document.getElementById('drawer').classList.add('open');
+        document.getElementById('drawerOverlay').classList.add('show');
+        loadDrawerTodos();
+    }
+    function closeDrawer() {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').classList.remove('show');
+    }
 
-        // 加载历史待办到抽屉
-        async function loadDrawerTodos() {
-            const drawerList = document.getElementById('drawerList');
-            drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载中...</p>';
-            try {
-                const resp = await fetch(`/api/todos?user_id=${userId}`);
-                const data = await resp.json();
-                if (data.todos && data.todos.length > 0) {
-                    drawerList.innerHTML = data.todos.map(t => `
-                        <div class="drawer-todo-item">
-                            <h4>${t.title}</h4>
-                            <p>⏰ ${t.deadline || '无'} | 📁 ${t.category || '未分类'}</p>
-                        </div>
-                    `).join('');
-                } else {
-                    drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">暂无待办</p>';
-                }
-            } catch (e) {
-                drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载失败</p>';
-            }
-        }
-
-        // 切换输入模式
-        function toggleInputMode() {
-            inputModeActive = !inputModeActive;
-            const area = document.getElementById('inputModeArea');
-            const audioArea = document.getElementById('audioPlaybackArea');
-            const currentArea = document.getElementById('currentTodoArea');
-            if (inputModeActive) {
-                area.classList.add('active');
-                audioArea.style.display = 'none';
-                currentArea.innerHTML = '';
+    async function loadDrawerTodos() {
+        const drawerList = document.getElementById('drawerList');
+        drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载中...</p>';
+        try {
+            const resp = await fetch(`/api/todos?user_id=${userId}`);
+            const data = await resp.json();
+            if (data.todos && data.todos.length > 0) {
+                drawerList.innerHTML = data.todos.map(t => `
+                    <div class="drawer-todo-item">
+                        <h4>${t.title}</h4>
+                        <p>⏰ ${t.deadline || '无'} | 📁 ${t.category || '未分类'}</p>
+                    </div>
+                `).join('');
             } else {
-                area.classList.remove('active');
+                drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">暂无待办</p>';
             }
+        } catch (e) {
+            drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载失败</p>';
         }
+    }
 
-            // 录音按钮事件
-        const recordBtn = document.getElementById('recordBtn');
-        recordBtn.addEventListener('touchstart', async (e) => {
+    // ---------- 输入模式切换 ----------
+    function toggleInputMode() {
+        inputModeActive = !inputModeActive;
+        const area = document.getElementById('inputModeArea');
+        const audioArea = document.getElementById('audioPlaybackArea');
+        const currentArea = document.getElementById('currentTodoArea');
+        if (inputModeActive) {
+            area.classList.add('active');
+            audioArea.style.display = 'none';
+            currentArea.innerHTML = '';
+        } else {
+            area.classList.remove('active');
+        }
+    }
+
+    // ---------- 录音按钮（iPhone 13 兼容版）----------
+    const recordBtn = document.getElementById('recordBtn');
+    const statusElem = document.getElementById('status');
+
+    recordBtn.addEventListener('touchstart', async (e) => {
         e.preventDefault();
         if (inputModeActive) toggleInputMode();
-        // 1. 尚未授权 -> 仅申请权限
+
+        // 首次使用，只申请权限
         if (!audioStream) {
             try {
                 audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -364,15 +365,14 @@
             return;
         }
 
-        // 2. 已授权 -> 真正录音
+        // 尝试多种录音格式，直到成功
         const mimeTypes = [
             'audio/webm;codecs=opus',
             'audio/webm',
             'audio/mp4',
             'audio/aac',
-            '' // 最后尝试让浏览器自选
+            ''  // 浏览器默认
         ];
-
         let started = false;
         for (const mime of mimeTypes) {
             if (started) break;
@@ -389,128 +389,109 @@
                 audioChunks = [];
                 mediaRecorder.start();
                 recordBtn.classList.add('recording');
-                document.getElementById('status')?.textContent = '正在录音...';
+                if (statusElem) statusElem.textContent = '正在录音...';
                 started = true;
             } catch (err) {
-                // 该 mimeType 不支持，继续尝试下一个
-                console.warn('尝试 mimeType 失败:', mime, err);
+                console.warn('尝试格式失败:', mime, err);
             }
         }
-
         if (!started) {
-            alert('当前浏览器无法启动录音，请使用手动输入');
+            alert('当前浏览器不支持录音，请使用手动输入');
         }
-        });
+    });
 
-        recordBtn.addEventListener('touchend', () => {
-          if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-                recordBtn.classList.remove('recording');
-                document.getElementById('status')?.textContent = '录音完成，可播放试听，点击「生成待办」提交';
-            }
-        });
+    recordBtn.addEventListener('touchend', () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            recordBtn.classList.remove('recording');
+            if (statusElem) statusElem.textContent = '录音完成，可播放试听，点击「生成待办」提交';
+        }
+    });
 
-        // 显示音频播放器
-        function showPlayerFallback(blob) {
-            const container = document.getElementById('playerContainer');
-            const url = URL.createObjectURL(blob);
-            const mime = blob.type;
+    // ---------- 播放器（iPhone 对 webm 不友好）----------
+    function showPlayerFallback(blob) {
+        const container = document.getElementById('playerContainer');
+        const url = URL.createObjectURL(blob);
+        const mime = blob.type;
 
-            // iOS Safari 对 webm 的 <audio> 播放支持极差，转换提示
-            if (mime && mime.includes('webm')) {
-                container.innerHTML = `
-                    <p style="color:var(--text-secondary);font-size:14px;text-align:center;">
-                        ⚠️ 你的浏览器可能不支持直接播放该格式<br>
-                        可以直接点击「生成待办」，后台会自动识别
-                    </p>
-                    <audio controls src="${url}"></audio>
-                `;
-            } else {
-                container.innerHTML = `<audio controls src="${url}"></audio>`;
-            }
+        if (mime && mime.includes('webm')) {
+            container.innerHTML = `
+                <p style="color:var(--text-secondary);font-size:14px;text-align:center;">
+                    ⚠️ 你的浏览器可能不支持直接播放该格式<br>
+                    可以直接点击「生成待办」，后台会自动识别
+                </p>
+                <audio controls src="${url}" style="width:100%;"></audio>
+            `;
+        } else {
+            container.innerHTML = `<audio controls src="${url}" style="width:100%;"></audio>`;
+        }
 
-            document.getElementById('audioPlaybackArea').style.display = 'block';
-            document.getElementById('currentTodoArea').innerHTML = '';
+        document.getElementById('audioPlaybackArea').style.display = 'block';
+        document.getElementById('currentTodoArea').innerHTML = '';
+        document.getElementById('inputModeArea').classList.remove('active');
+        inputModeActive = false;
+    }
+
+    // ---------- 提交待办 ----------
+    async function generateFromRecording() {
+        if (!recordedBlob) return;
+        const formData = new FormData();
+        const image = document.getElementById('imageInput')?.files[0];
+        formData.append('audio', recordedBlob, 'recording.webm');
+        formData.append('user_id', userId);
+        if (image) formData.append('image', image);
+        await submitForm(formData);
+    }
+
+    async function generateFromText() {
+        const text = document.getElementById('manualText').value.trim();
+        if (!text) return;
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('user_id', userId);
+        await submitForm(formData);
+    }
+
+    async function submitForm(formData) {
+        const currentArea = document.getElementById('currentTodoArea');
+        currentArea.innerHTML = '<p style="text-align:center;">⏳ 正在处理...</p>';
+        try {
+            const resp = await fetch('/api/todo', { method: 'POST', body: formData });
+            const data = await resp.json();
+            renderTodos(data.todos);
+            recordedBlob = null;
+            document.getElementById('audioPlaybackArea').style.display = 'none';
+            document.getElementById('playerContainer').innerHTML = '';
             document.getElementById('inputModeArea').classList.remove('active');
             inputModeActive = false;
+        } catch (e) {
+            currentArea.innerHTML = '<p style="color:red;">请求失败，请重试</p>';
         }
+    }
 
-        // 从录音生成待办
-        async function generateFromRecording() {
-            if (!recordedBlob) return;
-            const formData = new FormData();
-            const image = document.getElementById('imageInput')?.files[0];
-            formData.append('audio', recordedBlob, 'recording.webm');
-            formData.append('user_id', userId);
-            if (image) formData.append('image', image);
-            await submitForm(formData);
+    // ---------- 渲染待办 ----------
+    function renderTodos(todos) {
+        const currentArea = document.getElementById('currentTodoArea');
+        if (!todos || todos.length === 0) {
+            currentArea.innerHTML = '<p style="text-align:center;">未生成待办</p>';
+            return;
         }
-
-        // 从文本生成待办
-        async function generateFromText() {
-            const text = document.getElementById('manualText').value.trim();
-            if (!text) return;
-            const formData = new FormData();
-            formData.append('text', text);
-            formData.append('user_id', userId);
-            await submitForm(formData);
-        }
-
-        // 提交并显示结果
-        async function submitForm(formData) {
-            const currentArea = document.getElementById('currentTodoArea');
-            currentArea.innerHTML = '<p style="text-align:center;">⏳ 正在处理...</p>';
-            try {
-                const resp = await fetch('/api/todo', { method: 'POST', body: formData });
-                const data = await resp.json();
-                renderTodos(data.todos);
-                // 清除录音状态
-                recordedBlob = null;
-                document.getElementById('audioPlaybackArea').style.display = 'none';
-                document.getElementById('playerContainer').innerHTML = '';
-                // 如果输入模式，关闭
-                document.getElementById('inputModeArea').classList.remove('active');
-                inputModeActive = false;
-            } catch (e) {
-                currentArea.innerHTML = '<p style="color:red;">请求失败，请重试</p>';
-            }
-        }
-
-        // 渲染待办结果
-        function renderTodos(todos) {
-            const currentArea = document.getElementById('currentTodoArea');
-            if (!todos || todos.length === 0) {
-                currentArea.innerHTML = '<p style="text-align:center;">未生成待办</p>';
-                return;
-            }
-            let html = '';
-            todos.forEach(t => {
-                const icon = {"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || "⚪";
-                html += `<div class="todo-result-item">`;
-                if (t.image_url) html += `<img src="${t.image_url}" />`;
-                html += `<div style="flex:1;"><strong>${t.title}</strong><br><span style="font-size:13px;color:var(--text-secondary);">⏰ ${t.deadline || '无'} | 📁 ${t.category || '未知'} | ${icon} ${t.priority || '中'}</span></div></div>`;
-            });
-            currentArea.innerHTML = html;
-            // 更新抽屉
-            loadDrawerTodos();
-        }
-
-        // 图片上传（可选，保留功能但不在界面主要位置，可在生成时附加？这里简化，暂时不加图片上传按钮。如需，可在主区域添加一个小图标触发上传）
-        // 因为用户没有特别要求图片，但之前有，我们可以保留隐藏的input，通过某个按钮触发。暂时去掉图片上传UI，但保留代码逻辑。
-        // 我们可以添加一个隐藏的文件输入，在生成待办前通过某个方式触发，但为了简化布局，暂时略去。以后需要再加。
-        // 如果用户需要图片，可以在底部加一个附件按钮。
-        // 目前先保留，但不展示选择器。如果想用，可在当前区域增加一个“📎”按钮触发。
-        // 为了不丢失图片功能，我们可以在生成待办前检查是否有选中的图片，所以保留一个隐藏 input 并在合适时机弹出。
-        // 这里暂时不加显式的图片按钮，保持界面简洁。
-        // 如果需要，可以手动添加以下 html：<input type="file" id="imageInput" accept="image/*" style="display:none" />
-        // 并在某个地方触发选择。
-        // 暂且这样。
-
-        // 页面加载时拉取历史
-        window.addEventListener('load', () => {
-            loadDrawerTodos();
+        let html = '';
+        todos.forEach(t => {
+            const icon = {"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || "⚪";
+            html += `<div class="todo-result-item">`;
+            if (t.image_url) html += `<img src="${t.image_url}" />`;
+            html += `<div style="flex:1;"><strong>${t.title}</strong><br><span style="font-size:13px;color:var(--text-secondary);">⏰ ${t.deadline || '无'} | 📁 ${t.category || '未知'} | ${icon} ${t.priority || '中'}</span></div></div>`;
         });
-    </script>
+        currentArea.innerHTML = html;
+        loadDrawerTodos();  // 同步更新抽屉
+    }
+
+    // ---------- 启动时加载历史 ----------
+    window.addEventListener('load', () => {
+        loadDrawerTodos();
+    });
+</script>
     <!-- 隐藏的图片 input，如果需要可以通过其他方式触发 -->
     <input type="file" id="imageInput" accept="image/*" style="display:none" />
 </body>
