@@ -5,7 +5,7 @@ from faster_whisper import WhisperModel
 from openai import OpenAI
 import json, os, tempfile, uuid, librosa
 import soundfile as sf
-
+import sqlite3
 app = FastAPI()
 
 # 创建图片存储目录
