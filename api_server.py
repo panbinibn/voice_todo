@@ -124,7 +124,8 @@ def get_user_todos(user_id: str) -> list:
 async def create_todo(
         audio: UploadFile = File(None),
         image: UploadFile = File(None),
-        text: str = Form(None)
+        text: str = Form(None),
+        user_id: str = Form("")
 ):
     # 1. 获取文字
     if audio:
