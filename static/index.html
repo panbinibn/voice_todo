@@ -56,18 +56,22 @@
 
         document.getElementById("recordBtn").addEventListener("touchstart", async (e) => {
             e.preventDefault();
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                stream.getTracks().forEach(t => t.stop());
-                document.getElementById("status").textContent = "录音完成，点击「生成待办」提交";
-            };
-            audioChunks = [];
-            mediaRecorder.start();
-            document.getElementById("recordBtn").classList.add("recording");
-            document.getElementById("recordBtn").textContent = "录音中，松开发送";
-            document.getElementById("status").textContent = "正在录音...";
+             try {
+               const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+               mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+               mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+               mediaRecorder.onstop = () => {
+               stream.getTracks().forEach(t => t.stop());
+               document.getElementById("status").textContent = "录音完成，点击「生成待办」提交";
+             };
+               audioChunks = [];
+               mediaRecorder.start();
+               document.getElementById("recordBtn").classList.add("recording");
+               document.getElementById("recordBtn").textContent = "录音中，松开发送";
+               document.getElementById("status").textContent = "正在录音...";
+             } catch (err) {
+                  alert("无法访问麦克风：" + err.message);
+             }
         });
 
         document.getElementById("recordBtn").addEventListener("touchend", () => {
