@@ -236,6 +236,62 @@
             border-radius: var(--radius-sm);
             margin-right: 12px;
         }
+        /* ========== 录音模态框 ========== */
+        .record-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .record-modal.active {
+            display: flex;
+        }
+        .record-modal .hint-text {
+            color: white;
+            font-size: 16px;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+        .record-modal .wave-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 80px;
+            margin-bottom: 40px;
+        }
+        .record-modal .wave-bar {
+            width: 6px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 3px;
+            animation: wave 1.2s ease-in-out infinite;
+        }
+        .record-modal .wave-bar:nth-child(1) { animation-delay: 0s; }
+        .record-modal .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .record-modal .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .record-modal .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .record-modal .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+        .record-modal .wave-bar:nth-child(6) { animation-delay: 0.5s; }
+        .record-modal .wave-bar:nth-child(7) { animation-delay: 0.6s; }
+        .record-modal .wave-bar:nth-child(8) { animation-delay: 0.7s; }
+        .record-modal .wave-bar:nth-child(9) { animation-delay: 0.8s; }
+
+        @keyframes wave {
+            0%, 100% { height: 20px; }
+            50% { height: 70px; }
+        }
+
+        .record-modal .release-hint {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -284,6 +340,22 @@
     <div class="bottom-bar">
         <button class="bottom-btn" id="keyboardBtn" onclick="toggleInputMode()">⌨️</button>
         <button class="bottom-btn record-btn" id="recordBtn">🎤</button>
+    </div>
+    <!-- 录音模态框 -->
+    <div class="record-modal" id="recordModal">
+        <div class="hint-text">🎤 正在聆听...</div>
+        <div class="wave-box">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+        </div>
+        <div class="release-hint">松手结束录音</div>
     </div>
 
    <script>
@@ -349,64 +421,64 @@
     const recordBtn = document.getElementById('recordBtn');
     const statusElem = document.getElementById('status');
 
-    recordBtn.addEventListener('touchstart', async (e) => {
-        e.preventDefault();
-        if (inputModeActive) toggleInputMode();
+   recordBtn.addEventListener('touchstart', async (e) => {
+    e.preventDefault();
+    if (inputModeActive) toggleInputMode();
 
-        // 首次使用，只申请权限
-        if (!audioStream) {
-            try {
-                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                document.getElementById('currentTodoArea').innerHTML =
-                    '<p style="text-align:center;color:var(--primary);">✅ 麦克风已就绪，请再次按住录音</p>';
-            } catch (err) {
-                alert("无法访问麦克风：" + err.message);
-            }
-            return;
+    // 首次使用，只申请权限
+    if (!audioStream) {
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            document.getElementById('currentTodoArea').innerHTML =
+                '<p style="text-align:center;color:var(--primary);">✅ 麦克风已就绪，请再次按住录音</p>';
+        } catch (err) {
+            alert("无法访问麦克风：" + err.message);
         }
+        return;
+    }
 
-        // 尝试多种录音格式，直到成功
-        const mimeTypes = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/mp4',
-            'audio/aac',
-            ''  // 浏览器默认
-        ];
-        let started = false;
-        for (const mime of mimeTypes) {
-            if (started) break;
-            try {
-                const options = mime ? { mimeType: mime } : {};
-                mediaRecorder = new MediaRecorder(audioStream, options);
-                mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
-                mediaRecorder.onstop = () => {
-                    if (audioChunks.length > 0) {
-                        recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                        showPlayerFallback(recordedBlob);
-                    }
-                };
-                audioChunks = [];
-                mediaRecorder.start();
-                recordBtn.classList.add('recording');
-                if (statusElem) statusElem.textContent = '正在录音...';
-                started = true;
-            } catch (err) {
-                console.warn('尝试格式失败:', mime, err);
-            }
+    // 显示录音动画界面
+    const modal = document.getElementById('recordModal');
+    modal.classList.add('active');
+
+    // 尝试多种录音格式
+    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', ''];
+    let started = false;
+    for (const mime of mimeTypes) {
+        if (started) break;
+        try {
+            const options = mime ? { mimeType: mime } : {};
+            mediaRecorder = new MediaRecorder(audioStream, options);
+            mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
+            mediaRecorder.onstop = () => {
+                // 隐藏动画界面
+                modal.classList.remove('active');
+                if (audioChunks.length > 0) {
+                    recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    showPlayerFallback(recordedBlob);
+                }
+            };
+            audioChunks = [];
+            mediaRecorder.start();
+            recordBtn.classList.add('recording');
+            started = true;
+        } catch (err) {
+            console.warn('尝试格式失败:', mime, err);
         }
-        if (!started) {
-            alert('当前浏览器不支持录音，请使用手动输入');
-        }
-    });
+    }
+    if (!started) {
+        modal.classList.remove('active');
+        alert('当前浏览器不支持录音，请使用手动输入');
+    }
+});
+
 
     recordBtn.addEventListener('touchend', () => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            recordBtn.classList.remove('recording');
-            if (statusElem) statusElem.textContent = '录音完成，可播放试听，点击「生成待办」提交';
-        }
-    });
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        recordBtn.classList.remove('recording');
+    }
+});
 
     // ---------- 播放器（iPhone 对 webm 不友好）----------
     function showPlayerFallback(blob) {
