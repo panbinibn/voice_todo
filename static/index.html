@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>随听todolist</title>
+    <title>AI 记忆外挂</title>
     <style>
         :root {
             --primary: #FF6B6B;
@@ -21,8 +21,6 @@
             --radius-sm: 12px;
             --radius: 16px;
             --radius-lg: 20px;
-            --bottom-bar-height: 80px;
-            --drawer-width: 280px;
         }
 
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -35,71 +33,8 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .drawer {
-            position: fixed;
-            top: 0;
-            left: -100%;
-            width: var(--drawer-width);
-            height: 100%;
-            background: white;
-            z-index: 1000;
-            box-shadow: var(--shadow-lg);
-            transition: left 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            padding-bottom: calc(var(--bottom-bar-height) + 20px);
-        }
-        .drawer.open {
-            left: 0;
-        }
-        .drawer-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.3);
-            z-index: 999;
-            display: none;
-            transition: opacity 0.3s ease;
-        }
-        .drawer-overlay.show {
-            display: block;
-        }
-        .drawer-header {
-            padding: 20px 16px 10px;
-            border-bottom: 1px solid #eee;
-            font-size: 18px;
-            font-weight: 700;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .close-drawer {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        .drawer-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 16px;
-        }
-        .drawer-todo-item {
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 8px;
-            background: #F8F9FA;
-            border-left: 4px solid var(--secondary);
-            cursor: pointer;
-        }
-        .drawer-todo-item h4 { font-size: 15px; margin-bottom: 4px; }
-        .drawer-todo-item p { font-size: 12px; color: var(--text-secondary); }
-
         .main-content {
-            padding: 20px 16px calc(var(--bottom-bar-height) + 20px);
+            padding: 20px 16px 100px;
             min-height: 100vh;
         }
         .header {
@@ -108,101 +43,153 @@
             justify-content: space-between;
             margin-bottom: 20px;
         }
-        .header .menu-btn {
-            font-size: 28px;
-            background: none;
-            border: none;
-            cursor: pointer;
-        }
         .header h1 {
             font-size: 22px;
             font-weight: 700;
             color: var(--text);
         }
 
-        .current-todo-area {
-            margin-bottom: 20px;
-        }
-
-        .input-mode-area {
-            display: none;
-        }
-        .input-mode-area.active {
-            display: block;
-        }
-
-        .text-input-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 16px;
-            box-shadow: var(--shadow-sm);
-        }
-        .text-input-card textarea {
-            width: 100%;
-            border: 1px solid #E0E6ED;
-            border-radius: var(--radius);
-            padding: 12px;
-            font-size: 16px;
-            resize: none;
-            min-height: 80px;
-            outline: none;
-        }
-
-        .bottom-bar {
+        /* 悬浮按钮 */
+        .fab-btn {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: var(--bottom-bar-height);
-            background: white;
-            box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            padding: 8px 20px;
-            z-index: 900;
-        }
-        .bottom-btn {
-            width: 50px;
-            height: 50px;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
-            border: none;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            background: var(--bg);
-            color: var(--text);
-            transition: all 0.2s;
-        }
-        .bottom-btn:active {
-            background: #eee;
-        }
-        .record-btn {
-            width: 70px;
-            height: 70px;
             background: linear-gradient(135deg, #FF6B6B, #ee5a24);
             color: white;
-            box-shadow: 0 4px 14px rgba(255,107,107,0.35);
-            font-size: 28px;
+            border: none;
+            font-size: 32px;
+            box-shadow: 0 4px 16px rgba(255,107,107,0.4);
+            cursor: pointer;
+            z-index: 800;
+            transition: transform 0.3s ease;
         }
-        .record-btn.recording {
-            animation: pulse 1.5s infinite;
-            background: linear-gradient(135deg, #e55a5a, #d63031);
-        }
-        @keyframes pulse {
-            0%,100% { transform: scale(1); }
-            50% { transform: scale(0.95); }
+        .fab-btn:active {
+            transform: scale(0.9);
         }
 
-        .player-box {
-            margin: 10px 0;
+        /* 分类卡片 */
+        .category-card {
             background: white;
-            border-radius: var(--radius);
-            padding: 8px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
         }
-        .player-box audio { width: 100%; }
+        .category-header {
+            padding: 16px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #fafafa;
+        }
+        .category-header .arrow {
+            transition: transform 0.3s ease;
+            font-size: 12px;
+        }
+        .category-header .arrow.open {
+            transform: rotate(180deg);
+        }
+        .category-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .category-body.expanded {
+            max-height: 600px;
+        }
+        .category-body .todo-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+        .category-body .todo-item:last-child {
+            border-bottom: none;
+        }
+        .category-body .todo-item img {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            margin-right: 12px;
+            object-fit: cover;
+        }
+        .category-body .todo-item .info {
+            flex: 1;
+        }
+        .category-body .todo-item .title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .category-body .todo-item .meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* 输入模态框 */
+        .input-modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1500;
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .input-modal-overlay.show {
+            display: flex;
+        }
+        .input-modal-content {
+            background: white;
+            width: 100%;
+            max-height: 85%;
+            border-radius: 24px 24px 0 0;
+            padding: 24px 20px;
+            overflow-y: auto;
+            animation: slideUp 0.35s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .input-modal-content .tab-bar {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: var(--radius);
+            background: #f0f0f0;
+            padding: 4px;
+        }
+        .input-modal-content .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .input-modal-content .tab.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+        .input-modal-content .tab-content {
+            display: none;
+        }
+        .input-modal-content .tab-content.active {
+            display: block;
+        }
 
         .generate-btn {
             display: block;
@@ -217,26 +204,19 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .record-btn {
+            width: 100%;
+        }
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #e55a5a, #d63031);
+        }
+        @keyframes pulse {
+            0%,100% { transform: scale(1); }
+            50% { transform: scale(0.95); }
+        }
 
-        .todo-result {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 16px;
-            box-shadow: var(--shadow-sm);
-        }
-        .todo-result-item {
-            padding: 12px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            align-items: flex-start;
-        }
-        .todo-result-item img {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-sm);
-            margin-right: 12px;
-        }
-        /* ========== 录音模态框 ========== */
+        /* 录音全屏动画 */
         .record-modal {
             position: fixed;
             top: 0; left: 0;
@@ -281,290 +261,291 @@
         .record-modal .wave-bar:nth-child(7) { animation-delay: 0.6s; }
         .record-modal .wave-bar:nth-child(8) { animation-delay: 0.7s; }
         .record-modal .wave-bar:nth-child(9) { animation-delay: 0.8s; }
-
         @keyframes wave {
             0%, 100% { height: 20px; }
             50% { height: 70px; }
         }
-
         .record-modal .release-hint {
             color: rgba(255,255,255,0.6);
             font-size: 14px;
             margin-top: 20px;
         }
+
+        .image-preview-area img {
+            max-width: 120px;
+            border-radius: var(--radius-sm);
+            margin-top: 8px;
+        }
+        .clear-img-btn {
+            color: var(--primary);
+            background: none;
+            border: none;
+            font-size: 14px;
+            display: block;
+            margin: 4px auto 0;
+        }
     </style>
 </head>
 <body>
-    <!-- 抽屉覆盖层 -->
-    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
-
-    <!-- 左侧抽屉 -->
-    <div class="drawer" id="drawer">
-        <div class="drawer-header">
-            <span>📋 历史待办</span>
-            <button class="close-drawer" onclick="closeDrawer()">✕</button>
-        </div>
-        <div class="drawer-list" id="drawerList">
-            <p style="color:var(--text-light);text-align:center;">加载中...</p>
-        </div>
-    </div>
-
     <!-- 主界面 -->
     <div class="main-content">
         <div class="header">
-            <button class="menu-btn" onclick="openDrawer()">☰</button>
-            <h1>🧠 随手记</h1>
+            <h1>🧠 记忆外挂</h1>
         </div>
 
-        <!-- 当前待办显示区域 -->
-        <div class="current-todo-area" id="currentTodoArea">
-            <p style="text-align:center;color:var(--text-light);">记录你的一句话，自动生成待办</p>
+        <!-- 分类待办列表 -->
+        <div class="category-list" id="categoryList">
+            <p style="text-align:center;color:var(--text-light);">加载中...</p>
         </div>
+    </div>
 
-        <!-- 手动输入模式 -->
-        <div class="input-mode-area" id="inputModeArea">
-            <div class="text-input-card">
-                <textarea id="manualText" placeholder="输入待办内容..."></textarea>
-                <button class="generate-btn" onclick="generateFromText()">✨ 生成待办</button>
+    <!-- 悬浮按钮 -->
+    <button class="fab-btn" onclick="openInputModal()">+</button>
+
+    <!-- 输入模态框 -->
+    <div class="input-modal-overlay" id="inputModalOverlay" onclick="closeInputModal()">
+        <div class="input-modal-content" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-size:18px;">新建待办</h3>
+                <button onclick="closeInputModal()" style="background:none;border:none;font-size:24px;cursor:pointer;">✕</button>
+            </div>
+
+            <div class="tab-bar">
+                <div class="tab active" id="tabVoice" onclick="switchInputTab('voice')">🎤 语音</div>
+                <div class="tab" id="tabText" onclick="switchInputTab('text')">⌨️ 打字</div>
+            </div>
+
+            <!-- 语音面板 -->
+            <div class="tab-content active" id="voicePanel">
+                <p id="voiceStatus" style="text-align:center;color:var(--text-secondary);">按住下方按钮开始录音</p>
+                <button class="generate-btn record-btn" id="voiceRecordBtn">按住录音</button>
+                <div id="voicePlayer" style="display:none;margin-top:12px;"></div>
+            </div>
+
+            <!-- 文字面板 -->
+            <div class="tab-content" id="textPanel">
+                <textarea id="manualText" placeholder="输入你想记的事..." style="width:100%;border:1px solid #ddd;border-radius:var(--radius-sm);padding:12px;font-size:16px;resize:none;min-height:100px;outline:none;"></textarea>
+                <button class="generate-btn" onclick="submitTextTodo()" style="margin-top:12px;">✨ 生成待办</button>
+            </div>
+
+            <!-- 图片附件 -->
+            <div style="margin-top:16px;text-align:center;">
+                <input type="file" id="imageInput" accept="image/*" capture="environment" style="display:none;" />
+                <button class="generate-btn" style="background:#eee;color:var(--text);" onclick="document.getElementById('imageInput').click()">📎 附加图片</button>
+                <div class="image-preview-area" id="imagePreviewArea" style="display:none;">
+                    <img id="previewImg" src="" alt="预览" />
+                    <button class="clear-img-btn" onclick="clearImage()">移除图片</button>
+                </div>
             </div>
         </div>
-
-        <!-- 录音完成后显示的播放与生成按钮 -->
-        <div id="audioPlaybackArea" style="display:none;">
-            <div class="player-box" id="playerContainer"></div>
-            <button class="generate-btn" onclick="generateFromRecording()">✨ 生成待办</button>
-        </div>
     </div>
 
-    <!-- 底部操作栏 -->
-    <div class="bottom-bar">
-        <button class="bottom-btn" id="keyboardBtn" onclick="toggleInputMode()">⌨️</button>
-        <button class="bottom-btn record-btn" id="recordBtn">🎤</button>
-    </div>
-    <!-- 录音模态框 -->
+    <!-- 录音全屏动画 -->
     <div class="record-modal" id="recordModal">
         <div class="hint-text">🎤 正在聆听...</div>
         <div class="wave-box">
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
         </div>
         <div class="release-hint">松手结束录音</div>
     </div>
 
-   <script>
-    let audioChunks = [];
-    let mediaRecorder;
-    let audioStream = null;
-    let recordedBlob = null;
-    let inputModeActive = false;
-    let userId = localStorage.getItem('todo_user_id');
-    if (!userId) {
-        userId = 'user_' + crypto.randomUUID();
-        localStorage.setItem('todo_user_id', userId);
-    }
+    <script>
+        // ========== 全局状态 ==========
+        let audioChunks = [];
+        let mediaRecorder;
+        let audioStream = null;
+        let recordedBlob = null;
+        let selectedImageFile = null;
+        const userId = localStorage.getItem('todo_user_id') || (() => {
+            const id = 'user_' + crypto.randomUUID();
+            localStorage.setItem('todo_user_id', id);
+            return id;
+        })();
 
-    // ---------- 抽屉控制 ----------
-    function openDrawer() {
-        document.getElementById('drawer').classList.add('open');
-        document.getElementById('drawerOverlay').classList.add('show');
-        loadDrawerTodos();
-    }
-    function closeDrawer() {
-        document.getElementById('drawer').classList.remove('open');
-        document.getElementById('drawerOverlay').classList.remove('show');
-    }
-
-    async function loadDrawerTodos() {
-        const drawerList = document.getElementById('drawerList');
-        drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载中...</p>';
-        try {
-            const resp = await fetch(`/api/todos?user_id=${userId}`);
-            const data = await resp.json();
-            if (data.todos && data.todos.length > 0) {
-                drawerList.innerHTML = data.todos.map(t => `
-                    <div class="drawer-todo-item">
-                        <h4>${t.title}</h4>
-                        <p>⏰ ${t.deadline || '无'} | 📁 ${t.category || '未分类'}</p>
-                    </div>
-                `).join('');
-            } else {
-                drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">暂无待办</p>';
-            }
-        } catch (e) {
-            drawerList.innerHTML = '<p style="color:var(--text-light);text-align:center;">加载失败</p>';
-        }
-    }
-
-    // ---------- 输入模式切换 ----------
-    function toggleInputMode() {
-        inputModeActive = !inputModeActive;
-        const area = document.getElementById('inputModeArea');
-        const audioArea = document.getElementById('audioPlaybackArea');
-        const currentArea = document.getElementById('currentTodoArea');
-        if (inputModeActive) {
-            area.classList.add('active');
-            audioArea.style.display = 'none';
-            currentArea.innerHTML = '';
-        } else {
-            area.classList.remove('active');
-        }
-    }
-
-    // ---------- 录音按钮（iPhone 13 兼容版）----------
-    const recordBtn = document.getElementById('recordBtn');
-    const statusElem = document.getElementById('status');
-
-   recordBtn.addEventListener('touchstart', async (e) => {
-    e.preventDefault();
-    if (inputModeActive) toggleInputMode();
-
-    // 首次使用，只申请权限
-    if (!audioStream) {
-        try {
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            document.getElementById('currentTodoArea').innerHTML =
-                '<p style="text-align:center;color:var(--primary);">✅ 麦克风已就绪，请再次按住录音</p>';
-        } catch (err) {
-            alert("无法访问麦克风：" + err.message);
-        }
-        return;
-    }
-
-    // 显示录音动画界面
-    const modal = document.getElementById('recordModal');
-    modal.classList.add('active');
-
-    // 尝试多种录音格式
-    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', ''];
-    let started = false;
-    for (const mime of mimeTypes) {
-        if (started) break;
-        try {
-            const options = mime ? { mimeType: mime } : {};
-            mediaRecorder = new MediaRecorder(audioStream, options);
-            mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
-            mediaRecorder.onstop = () => {
-                // 隐藏动画界面
-                modal.classList.remove('active');
-                if (audioChunks.length > 0) {
-                    recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                    showPlayerFallback(recordedBlob);
+        // ========== 加载分类待办 ==========
+        async function loadCategoryTodos() {
+            const container = document.getElementById('categoryList');
+            container.innerHTML = '<p style="text-align:center;color:var(--text-light);">加载中...</p>';
+            try {
+                const resp = await fetch(`/api/todos?user_id=${userId}`);
+                const data = await resp.json();
+                if (!data.todos || data.todos.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:var(--text-light);">暂无待办，点击右下角 + 添加</p>';
+                    return;
                 }
-            };
-            audioChunks = [];
-            mediaRecorder.start();
-            recordBtn.classList.add('recording');
-            started = true;
-        } catch (err) {
-            console.warn('尝试格式失败:', mime, err);
-        }
-    }
-    if (!started) {
-        modal.classList.remove('active');
-        alert('当前浏览器不支持录音，请使用手动输入');
-    }
-});
-
-
-    recordBtn.addEventListener('touchend', () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        recordBtn.classList.remove('recording');
-    }
-});
-
-    // ---------- 播放器（iPhone 对 webm 不友好）----------
-    function showPlayerFallback(blob) {
-        const container = document.getElementById('playerContainer');
-        const url = URL.createObjectURL(blob);
-        const mime = blob.type;
-
-        if (mime && mime.includes('webm')) {
-            container.innerHTML = `
-                <p style="color:var(--text-secondary);font-size:14px;text-align:center;">
-                    ⚠️ 你的浏览器可能不支持直接播放该格式<br>
-                    可以直接点击「生成待办」，后台会自动识别
-                </p>
-                <audio controls src="${url}" style="width:100%;"></audio>
-            `;
-        } else {
-            container.innerHTML = `<audio controls src="${url}" style="width:100%;"></audio>`;
+                const groups = {};
+                data.todos.forEach(t => {
+                    const cat = t.category || '未分类';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(t);
+                });
+                let html = '';
+                Object.keys(groups).forEach((cat, idx) => {
+                    html += `<div class="category-card">
+                        <div class="category-header" onclick="toggleCategory(this)">
+                            <span>📁 ${cat} (${groups[cat].length})</span>
+                            <span class="arrow${idx === 0 ? ' open' : ''}">▼</span>
+                        </div>
+                        <div class="category-body${idx === 0 ? ' expanded' : ''}">
+                            ${groups[cat].map(t => {
+                                const icon = {"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || "⚪";
+                                return `<div class="todo-item">
+                                    ${t.image_url ? `<img src="${t.image_url}">` : ''}
+                                    <div class="info">
+                                        <div class="title">${t.title}</div>
+                                        <div class="meta">⏰ ${t.deadline || '未指定'} | ${icon} ${t.priority || '中'}</div>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<p style="color:red;text-align:center;">加载失败</p>';
+            }
         }
 
-        document.getElementById('audioPlaybackArea').style.display = 'block';
-        document.getElementById('currentTodoArea').innerHTML = '';
-        document.getElementById('inputModeArea').classList.remove('active');
-        inputModeActive = false;
-    }
-
-    // ---------- 提交待办 ----------
-    async function generateFromRecording() {
-        if (!recordedBlob) return;
-        const formData = new FormData();
-        const image = document.getElementById('imageInput')?.files[0];
-        formData.append('audio', recordedBlob, 'recording.webm');
-        formData.append('user_id', userId);
-        if (image) formData.append('image', image);
-        await submitForm(formData);
-    }
-
-    async function generateFromText() {
-        const text = document.getElementById('manualText').value.trim();
-        if (!text) return;
-        const formData = new FormData();
-        formData.append('text', text);
-        formData.append('user_id', userId);
-        await submitForm(formData);
-    }
-
-    async function submitForm(formData) {
-        const currentArea = document.getElementById('currentTodoArea');
-        currentArea.innerHTML = '<p style="text-align:center;">⏳ 正在处理...</p>';
-        try {
-            const resp = await fetch('/api/todo', { method: 'POST', body: formData });
-            const data = await resp.json();
-            renderTodos(data.todos);
-            recordedBlob = null;
-            document.getElementById('audioPlaybackArea').style.display = 'none';
-            document.getElementById('playerContainer').innerHTML = '';
-            document.getElementById('inputModeArea').classList.remove('active');
-            inputModeActive = false;
-        } catch (e) {
-            currentArea.innerHTML = '<p style="color:red;">请求失败，请重试</p>';
+        function toggleCategory(header) {
+            const arrow = header.querySelector('.arrow');
+            const body = header.nextElementSibling;
+            arrow.classList.toggle('open');
+            body.classList.toggle('expanded');
         }
-    }
 
-    // ---------- 渲染待办 ----------
-    function renderTodos(todos) {
-        const currentArea = document.getElementById('currentTodoArea');
-        if (!todos || todos.length === 0) {
-            currentArea.innerHTML = '<p style="text-align:center;">未生成待办</p>';
-            return;
+        // ========== 输入模态框 ==========
+        function openInputModal() {
+            document.getElementById('inputModalOverlay').classList.add('show');
+            switchInputTab('voice');
         }
-        let html = '';
-        todos.forEach(t => {
-            const icon = {"高":"🔴","中":"🟡","低":"🟢"}[t.priority] || "⚪";
-            html += `<div class="todo-result-item">`;
-            if (t.image_url) html += `<img src="${t.image_url}" />`;
-            html += `<div style="flex:1;"><strong>${t.title}</strong><br><span style="font-size:13px;color:var(--text-secondary);">⏰ ${t.deadline || '无'} | 📁 ${t.category || '未知'} | ${icon} ${t.priority || '中'}</span></div></div>`;
+        function closeInputModal() {
+            document.getElementById('inputModalOverlay').classList.remove('show');
+        }
+        function switchInputTab(type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if (type === 'voice') {
+                document.getElementById('tabVoice').classList.add('active');
+                document.getElementById('voicePanel').classList.add('active');
+            } else {
+                document.getElementById('tabText').classList.add('active');
+                document.getElementById('textPanel').classList.add('active');
+            }
+        }
+
+        // ========== 录音 (iPhone 兼容) ==========
+        const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+        voiceRecordBtn.addEventListener('touchstart', async (e) => {
+            e.preventDefault();
+            if (!audioStream) {
+                try {
+                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    document.getElementById('voiceStatus').textContent = '✅ 麦克风已就绪，请再次按住录音';
+                } catch (err) {
+                    alert("无法访问麦克风：" + err.message);
+                }
+                return;
+            }
+            document.getElementById('recordModal').classList.add('active');
+            const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', ''];
+            let started = false;
+            for (const mime of mimeTypes) {
+                if (started) break;
+                try {
+                    const options = mime ? { mimeType: mime } : {};
+                    mediaRecorder = new MediaRecorder(audioStream, options);
+                    mediaRecorder.ondataavailable = ev => audioChunks.push(ev.data);
+                    mediaRecorder.onstop = () => {
+                        document.getElementById('recordModal').classList.remove('active');
+                        if (audioChunks.length > 0) {
+                            recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                            showVoicePlayer(recordedBlob);
+                        }
+                    };
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    started = true;
+                } catch (err) {
+                    console.warn('尝试格式失败:', mime, err);
+                }
+            }
+            if (!started) {
+                document.getElementById('recordModal').classList.remove('active');
+                alert('当前浏览器不支持录音');
+            }
         });
-        currentArea.innerHTML = html;
-        loadDrawerTodos();  // 同步更新抽屉
-    }
+        voiceRecordBtn.addEventListener('touchend', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        });
 
-    // ---------- 启动时加载历史 ----------
-    window.addEventListener('load', () => {
-        loadDrawerTodos();
-    });
-</script>
-    <!-- 隐藏的图片 input，如果需要可以通过其他方式触发 -->
-    <input type="file" id="imageInput" accept="image/*" style="display:none" />
+        function showVoicePlayer(blob) {
+            const container = document.getElementById('voicePlayer');
+            container.innerHTML = `<audio controls src="${URL.createObjectURL(blob)}" style="width:100%;"></audio>
+                <button class="generate-btn" onclick="submitVoiceTodo()">✨ 生成待办</button>`;
+            container.style.display = 'block';
+        }
+
+        // ========== 提交待办 ==========
+        async function submitVoiceTodo() {
+            if (!recordedBlob) return;
+            const formData = new FormData();
+            formData.append('audio', recordedBlob, 'recording.webm');
+            formData.append('user_id', userId);
+            if (selectedImageFile) formData.append('image', selectedImageFile);
+            await submitAndRefresh(formData);
+        }
+
+        async function submitTextTodo() {
+            const text = document.getElementById('manualText').value.trim();
+            if (!text) return;
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('user_id', userId);
+            if (selectedImageFile) formData.append('image', selectedImageFile);
+            await submitAndRefresh(formData);
+        }
+
+        async function submitAndRefresh(formData) {
+            try {
+                const resp = await fetch('/api/todo', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.todos && data.todos.length > 0) await loadCategoryTodos();
+                recordedBlob = null;
+                audioChunks = [];
+                document.getElementById('voicePlayer').innerHTML = '';
+                document.getElementById('voicePlayer').style.display = 'none';
+                document.getElementById('manualText').value = '';
+                document.getElementById('voiceStatus').textContent = '按住下方按钮开始录音';
+                clearImage();
+                closeInputModal();
+            } catch (e) {
+                alert('提交失败');
+            }
+        }
+
+        // ========== 图片处理 ==========
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    document.getElementById('previewImg').src = ev.target.result;
+                    document.getElementById('imagePreviewArea').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        function clearImage() {
+            selectedImageFile = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreviewArea').style.display = 'none';
+        }
+
+        // ========== 初始化 ==========
+        window.addEventListener('load', loadCategoryTodos);
+    </script>
 </body>
 </html>
