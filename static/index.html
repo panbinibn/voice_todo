@@ -6,15 +6,15 @@
     <title>随听·待办</title>
     <style>
         :root {
-            --primary: #6B8E7B;         /* 鼠尾草绿 */
-            --primary-light: #A3C1AD;
-            --primary-dark: #4F6A5B;
-            --accent: #F5DEB3;          /* 小麦色 */
-            --bg: #F5F2EB;              /* 奶油米白 */
+            --primary: #7EC8A4;          /* 薄荷主绿 */
+            --primary-light: #B4E6CC;    /* 浅嫩绿 */
+            --primary-dark: #5BA17D;     /* 深一点增加层次 */
+            --accent: #FFF9E6;           /* 极浅暖黄，保留自然感 */
+            --bg: #F4FBF7;               /* 极浅绿白背景 */
             --card-bg: #FFFFFF;
-            --text: #3B4B3F;
-            --text-secondary: #6B7F6E;
-            --text-light: #A8B8A2;
+            --text: #2F4F3F;             /* 深绿褐文字 */
+            --text-secondary: #6B8B7B;   /* 中绿灰 */
+            --text-light: #ACC5B6;       /* 浅绿灰 */
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
             --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
             --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
@@ -27,7 +27,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #F5F2EB 0%, #E8EFE6 100%);
+            background: linear-gradient(135deg, #F4FBF7 0%, #E8F6EE 100%);
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
@@ -58,18 +58,17 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #6B8E7B, #4F6A5B);
+            background: linear-gradient(135deg, #7EC8A4, #5BA17D);
+            box-shadow: 0 4px 16px rgba(126,200,164,0.4);
             color: white;
             border: none;
             font-size: 32px;
-            box-shadow: 0 4px 16px rgba(107,142,123,0.4);
             cursor: pointer;
             z-index: 800;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         .fab-btn:active {
-            transform: scale(0.9);
-            box-shadow: 0 2px 8px rgba(107,142,123,0.3);
+            box-shadow: 0 2px 8px rgba(126,200,164,0.3);
         }
 
         /* 分类卡片 */
@@ -179,7 +178,7 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(107,142,123,0.15) 0%, transparent 60%);
+            background: radial-gradient(circle, rgba(126,200,164,0.15) 0%, transparent 60%);
             animation: ripple 6s linear infinite;
             pointer-events: none;
         }
@@ -247,7 +246,7 @@
             width: 100%;
             margin-top: 12px;
             padding: 14px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: linear-gradient(135deg, #7EC8A4, #5BA17D);
             color: white;
             border: none;
             border-radius: var(--radius);
@@ -266,11 +265,11 @@
         /* 录音按钮 */
         .record-btn {
             width: 100%;
-            background: linear-gradient(135deg, #DDBEA9, #CB997E);
+            background: linear-gradient(135deg, #B4E6CC, #7EC8A4);
         }
         .record-btn.recording {
             animation: pulse 1.5s infinite;
-            background: linear-gradient(135deg, #B5838D, #9B6A6C);
+            background: linear-gradient(135deg, #6BBF8F, #4D8F6B);
         }
         @keyframes pulse {
             0%,100% { transform: scale(1); }
@@ -297,7 +296,7 @@
             transition: background 0.2s;
         }
         .attach-btn:active {
-            background: rgba(107,142,123,0.1);
+            background: rgba(126,200,164,0.1);
         }
         .image-preview-small {
             display: flex;
@@ -350,7 +349,7 @@
         .record-modal .wave-bar {
             width: 6px;
             height: 20px;
-            background: #A3C1AD;
+            background: #B4E6CC;
             border-radius: 3px;
             animation: wave 1.2s ease-in-out infinite;
         }
@@ -377,7 +376,7 @@
 <body>
     <div class="main-content">
         <div class="header">
-            <h1>🌿</h1>
+            <h1></h1>
         </div>
         <div class="category-list" id="categoryList">
             <p style="text-align:center;color:var(--text-light);">加载中...</p>
